@@ -123,6 +123,8 @@ def semantic_search(query: str):
                         "query_vector": model.encode(query),
                         "k": 10,
                         "num_candidates": 100
-                        }
+                        },
+                        _source = ["title","body"],
                     )
+
     return response
