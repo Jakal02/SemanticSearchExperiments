@@ -7,7 +7,7 @@ ELASTIC_PASSWORD = os.environ["ELASTIC_PASSWORD"]
 # Create the client instance
 client = Elasticsearch(
     "https://localhost:9200",
-    ca_certs="./http_ca.crt",
+    ca_certs="./other_http_ca.crt",
     basic_auth=("elastic", ELASTIC_PASSWORD)
 )
 

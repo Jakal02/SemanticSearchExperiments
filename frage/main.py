@@ -10,7 +10,7 @@ from starlette.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from frage import models
-from frage.models import Post, PostCreate
+from frage.models import Post, PostCreate, PostRetrieve
 from frage.database import engine, SessionLocal
 
 
@@ -30,7 +30,7 @@ ELASTIC_PASSWORD = os.environ["ELASTIC_PASSWORD"]
 # Create the client instance
 client = Elasticsearch(
     "https://localhost:9200",
-    ca_certs="./http_ca.crt",
+    ca_certs="./other_http_ca.crt",
     basic_auth=("elastic", ELASTIC_PASSWORD)
 )
 
@@ -53,6 +53,11 @@ SessionDep = Annotated[Session, Depends(get_db)]
 @app.get("/")
 def hello(db: SessionDep):
     num_posts = db.query(Post).count()
+    return {"Hello":num_posts}
+
+@app.get("/post_index/")
+def hello(db: SessionDep):
+    num_posts = client.count(index=POST_INDEX)
     return {"Hello":num_posts}
 
 
@@ -85,10 +90,14 @@ def create_post(post_data: PostCreate, db:SessionDep):
     db.add(db_post)
     db.commit()
     db.refresh(db_post)
-    # Add to index
+    
+    # Encode
     text = db_post.title + "\n" + db_post.body
     encoding = model.encode(text)
-    print(type(encoding),encoding.shape)
+    # Add to elastic search
+    doc_data = PostRetrieve(**db_post.__dict__).model_dump()
+    doc_data['post_content_vector'] = encoding
+    client.index(index=POST_INDEX, id=doc_data['id'], document=doc_data)
 
     return db_post
 
@@ -100,4 +109,20 @@ def delete_post(id: int, db: SessionDep):
         return None
     db.delete(db_post)
     db.commit()
+    client.delete(index=POST_INDEX, id=db_post.id)
+
     return db_post
+
+
+@app.get("/sem_search/")
+def semantic_search(query: str):
+    response = client.search(
+                        index=POST_INDEX,
+                        knn={
+                        "field": "post_content_vector",
+                        "query_vector": model.encode(query),
+                        "k": 10,
+                        "num_candidates": 100
+                        }
+                    )
+    return response

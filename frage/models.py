@@ -1,6 +1,6 @@
 import datetime
 
-from pydantic import BaseModel, validator, field_validator
+from pydantic import BaseModel, validator, field_validator, PositiveInt
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, UniqueConstraint
 
@@ -21,3 +21,15 @@ class Post(Base):
 class PostCreate(BaseModel):
     title: str
     body: str
+
+
+class PostRetrieve(BaseModel):
+    title: str
+    body: str
+    date_created: datetime.datetime
+    date_modified: datetime.datetime
+    id: PositiveInt
+
+    model_config = {
+        "from_attributes": True,
+    }
